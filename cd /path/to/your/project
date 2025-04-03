@@ -1,0 +1,198 @@
+import requests
+from bs4 import BeautifulSoup
+import csv
+import json
+import time
+
+# 1️⃣ Core Web Scraper Class
+class SimpleScraper:
+    def __init__(self, user_agent=None):
+        """Initialize the scraper with an optional User-Agent."""
+        self.headers = {"User-Agent": user_agent} if user_agent else {}
+
+    def fetch_html(self, url):
+        """Fetch HTML content from the given URL."""
+        try:
+            response = requests.get(url, headers=self.headers)
+            response.raise_for_status()
+            return response.text
+        except requests.exceptions.RequestException as e:
+            print(f"Error fetching URL: {e}")
+            return None
+
+    def parse_html(self, html, selector):
+        """Parse HTML and return elements matching the CSS selector."""
+        soup = BeautifulSoup(html, "html.parser")
+        return soup.select(selector)
+
+    def get_status_code(self, url):
+        """Get HTTP response status code."""
+        try:
+            response = requests.get(url, headers=self.headers)
+            return response.status_code
+        except requests.exceptions.RequestException:
+            return None
+
+    def get_page_source(self, url):
+        """Get raw HTML source of the webpage."""
+        return self.fetch_html(url)
+
+    def check_robots_txt(self, url):
+        """Check if a website allows scraping via robots.txt."""
+        robots_url = url.rstrip("/") + "/robots.txt"
+        robots_text = self.fetch_html(robots_url)
+        return robots_text if robots_text else "No robots.txt found."
+
+    def get_sitemap(self, url):
+        """Try to get sitemap.xml for a website."""
+        sitemap_url = url.rstrip("/") + "/sitemap.xml"
+        sitemap_text = self.fetch_html(sitemap_url)
+        return sitemap_text if sitemap_text else "No sitemap found."
+
+    def delay_request(self, seconds):
+        """Pause execution for a specified time."""
+        time.sleep(seconds)
+        return f"Paused for {seconds} seconds."
+
+    def is_live(self, url):
+        """Check if a website is live."""
+        return self.get_status_code(url) == 200
+
+# 2️⃣ Content Extraction Class
+class ContentExtractor:
+    def __init__(self):
+        """Initialize ContentExtractor."""
+        pass
+
+    def get_text(self, elements):
+        """Extract text from elements."""
+        return [element.get_text(strip=True) for element in elements]
+
+    def get_links(self, elements):
+        """Extract links from <a> elements."""
+        return [element["href"] for element in elements if element.has_attr("href")]
+
+    def get_images(self, html):
+        """Extract all image sources from the page."""
+        soup = BeautifulSoup(html, "html.parser")
+        return [img["src"] for img in soup.find_all("img", src=True)]
+
+    def get_meta_description(self, html):
+        """Extract the meta description from the page."""
+        soup = BeautifulSoup(html, "html.parser")
+        meta_tag = soup.find("meta", attrs={"name": "description"})
+        return meta_tag["content"] if meta_tag else "No description found."
+
+    def get_headings(self, html, level=1):
+        """Extract all headings of a specified level."""
+        soup = BeautifulSoup(html, "html.parser")
+        return [h.text for h in soup.find_all(f"h{level}")]
+
+    def get_paragraphs(self, html):
+        """Extract all paragraph text from a webpage."""
+        soup = BeautifulSoup(html, "html.parser")
+        return [p.text for p in soup.find_all("p")]
+
+    def find_text(self, html, keyword):
+        """Find occurrences of a keyword in the page content."""
+        soup = BeautifulSoup(html, "html.parser")
+        return [element.text for element in soup.find_all(string=lambda text: keyword.lower() in text.lower())]
+
+    def get_table_data(self, html):
+        """Extract data from tables in the webpage."""
+        soup = BeautifulSoup(html, "html.parser")
+        tables = soup.find_all("table")
+        data = []
+        for table in tables:
+            rows = table.find_all("tr")
+            table_data = [[td.text for td in row.find_all(["td", "th"])] for row in rows]
+            data.append(table_data)
+        return data
+
+# 3️⃣ Data Processing Class
+class DataProcessor:
+    def filter_text(self, data, keyword):
+        """Filter list of text data by a keyword."""
+        return [item for item in data if keyword.lower() in item.lower()]
+
+    def count_elements(self, data):
+        """Count the number of elements in a list."""
+        return len(data)
+
+    def sort_text(self, data):
+        """Sort text data alphabetically."""
+        return sorted(data)
+
+    def remove_duplicates(self, data):
+        """Remove duplicate elements from a list."""
+        return list(set(data))
+
+    def extract_domain_names(self, urls):
+        """Extract domain names from a list of URLs."""
+        return [url.split("//")[-1].split("/")[0] for url in urls]
+
+    def get_unique_words(self, text_list):
+        """Get unique words from a list of text elements."""
+        words = " ".join(text_list).split()
+        return set(words)
+
+    def get_word_count(self, text_list):
+        """Get word count of all extracted text."""
+        words = " ".join(text_list).split()
+        return len(words)
+
+    def get_most_common_words(self, text_list, top_n=5):
+        """Find the most common words in extracted text."""
+        words = " ".join(text_list).split()
+        word_count = {word: words.count(word) for word in set(words)}
+        return sorted(word_count.items(), key=lambda x: x[1], reverse=True)[:top_n]
+
+    def clean_text(self, text_list):
+        """Remove extra spaces, new lines, and special characters."""
+        return [" ".join(text.split()) for text in text_list]
+
+# 4️⃣ File Handling Class
+class FileHandler:
+    def save_to_csv(self, data, filename):
+        """Save data to a CSV file."""
+        try:
+            with open(filename, mode="w", newline="", encoding="utf-8") as file:
+                writer = csv.writer(file)
+                writer.writerows(data)
+            print(f"Data saved to {filename}")
+        except Exception as e:
+            print(f"Error saving to CSV: {e}")
+
+    def save_to_json(self, data, filename):
+        """Save data to a JSON file."""
+        try:
+            with open(filename, mode="w", encoding="utf-8") as file:
+                json.dump(data, file, indent=4)
+            print(f"Data saved to {filename}")
+        except Exception as e:
+            print(f"Error saving to JSON: {e}")
+
+    def load_from_json(self, filename):
+        """Load data from a JSON file."""
+        try:
+            with open(filename, mode="r", encoding="utf-8") as file:
+                return json.load(file)
+        except Exception as e:
+            print(f"Error loading JSON: {e}")
+            return None
+
+# 5️⃣ Advanced Scraper Class
+class AdvancedScraper(SimpleScraper):
+    def __init__(self, user_agent=None):
+        """Initialize the scraper with a User-Agent."""
+        super().__init__(user_agent)
+
+    def scrape_multiple_pages(self, url_list):
+        """Scrape multiple pages and return their HTML content."""
+        return {url: self.fetch_html(url) for url in url_list}
+
+    def get_next_page(self, html, next_selector):
+        """Find the next page link in a paginated website."""
+        soup = BeautifulSoup(html, "html.parser")
+        next_page = soup.select_one(next_selector)
+        return next_page["href"] if next_page and next_page.has_attr("href") else None
